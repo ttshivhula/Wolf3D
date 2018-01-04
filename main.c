@@ -1,8 +1,4 @@
-#include <math.h>
-#include <stdio.h>
-#include <mlx.h>
-
-//place the example code below here:
+#include "wolf3d.h"
 
 #define mapWidth 24
 #define mapHeight 24
@@ -35,157 +31,162 @@ int worldMap[mapWidth][mapHeight]=
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
-void    *ptr;
-void    *win;
-void    *img;
-char    *c_img;
-int     bpp;
-int     sl;
-int     endian;
-
-void			draw_pixel_img(int x, int y, int color)
+static t_rander *rander(void)
 {
-	int i;
+    t_rander *new;
 
-	i = ((int)x * 4) + ((int)y * sl);
-	c_img[i] = color;
-	c_img[++i] = color >> 8;
-	c_img[++i] = color >> 16;
+    new = (t_rander *)malloc(sizeof(t_rander));
+    bzero(new, sizeof(t_rander));
+    new->pos_x = 22;
+    new->pos_y = 11;
+    new->dir_x = -2;
+    new->dir_y = 0;
+    new->plane_x = 0;
+    new->plane_y = 0.66;
+    return (new);
 }
 
-void    verLine(int x, int drawStart, int drawEnd, int color)
+t_pixel     *init_wolf(int width, int height)
 {
-    while (drawStart < drawEnd)
+    t_pixel *new;
+
+    new = (t_pixel *)malloc(sizeof(t_pixel));
+    new->ptr = mlx_init();
+    new->w = width;
+    new->h = height;
+    new->img = mlx_new_image(new->ptr, new->w, new->h);
+    new->win = mlx_new_window(new->ptr, new->w, new->h, "wolf3d");
+    new->c_img = mlx_get_data_addr(new->img, &new->bpp, &new->sl, &new->endian);
+    new->rander = rander();
+    return (new);
+}
+
+void    clear_screen(t_pixel **ptr)
+{
+    int i;
+    int j;
+
+    i = -1;
+    (*ptr)->color = 0x00bfff;
+    while (++i < (*ptr)->w)
     {
-        draw_pixel_img(x, drawStart, color);
-        drawStart++;
+        j = -1;
+        while (++j < ((*ptr)->h / 2))
+            draw_pixel(ptr, i, j);
+    }
+    (*ptr)->color = 0x01A611;
+    i = -1;
+    while (++i < (*ptr)->w)
+    {
+        j = ((*ptr)->h / 2) - 1;
+        while (++j < (*ptr)->h)
+            draw_pixel(ptr, i, j);
     }
 }
 
-double posX = 22, posY = 11;  //x and y start position
-    double dirX = -2, dirY = 0; //initial direction vector
-    double planeX = 0, planeY = 0.66; //the 2d raycaster version of camera plane
-    
-    double time = 0; //time of current frame
-    double oldTime = 0; //time of previous frame
-    
-    int h = 512;
-    int w = 800;
-
-void    ft_draw(void)
+void    ft_draw(t_pixel *ptr)
 {
-    for (int x = 256; x < 512; x++)
-    {
-        for (int y = 0; y < 800; y++)
-            draw_pixel_img(y, x, 0x01A611);
-    }
-    for (int x = 0; x < 256; x++)
-    {
-        for (int y = 0; y < 800; y++)
-            draw_pixel_img(y, x, 0x87cefa);
-    }
-
-        for(int x = 0; x < w; x++)
+    clear_screen(&ptr);
+        for(int x = 0; x < ptr->w; x++)
         {
             //calculate ray position and direction
-            double cameraX = 2 * x / (double)w - 1; //x-coordinate in camera space
-            double rayPosX = posX;
-            double rayPosY = posY;
-            double rayDirX = dirX + planeX * cameraX;
-            double rayDirY = dirY + planeY * cameraX;
+            ptr->rander->camera_x = 2 * x / (double)(ptr->w) - 1; //x-coordinate in camera space
+            ptr->rander->raypos_x = ptr->rander->pos_x;
+            ptr->rander->raypos_y = ptr->rander->pos_y;
+            ptr->rander->raydir_x = ptr->rander->dir_x + ptr->rander->plane_x * ptr->rander->camera_x;
+            ptr->rander->raydir_y = ptr->rander->dir_y + ptr->rander->plane_y * ptr->rander->camera_x;
             //which box of the map we're in
-            int mapX = (int)rayPosX;
-            int mapY = (int)rayPosY;
+            ptr->rander->map_x = (int)ptr->rander->raypos_x;
+            ptr->rander->map_y = (int)ptr->rander->raypos_y;
             
             //length of ray from current position to next x or y-side
-            double sideDistX;
-            double sideDistY;
+            //double ptr->rander->sidedist_x;
+            //double ptr->rander->sidedist_y;
             
             //length of ray from one x or y-side to next x or y-side
-            double deltaDistX = sqrt(1 + (rayDirY * rayDirY) / (rayDirX * rayDirX));
-            double deltaDistY = sqrt(1 + (rayDirX * rayDirX) / (rayDirY * rayDirY));
-            double perpWallDist;
-            
+            ptr->rander->deltadist_x = sqrt(1 + (ptr->rander->raydir_y * ptr->rander->raydir_y) / (ptr->rander->raydir_x * ptr->rander->raydir_x));
+            ptr->rander->deltadist_y = sqrt(1 + (ptr->rander->raydir_x * ptr->rander->raydir_x) / (ptr->rander->raydir_y * ptr->rander->raydir_y));
             //what direction to step in x or y-direction (either +1 or -1)
-            int stepX;
-            int stepY;
-            
-            int hit = 0; //was there a wall hit?
-            int side; //was a NS or a EW wall hit?
+            ptr->rander->hit = 0; //was there a wall ptr->rander->hit?
+             //was a NS or a EW wall ptr->rander->hit?
             //calculate step and initial sideDist
-            if (rayDirX < 0)
+            if (ptr->rander->raydir_x < 0)
             {
-                stepX = -1;
-                sideDistX = (rayPosX - mapX) * deltaDistX;
+                ptr->rander->step_x = -1;
+                ptr->rander->sidedist_x = (ptr->rander->raypos_x - ptr->rander->map_x) * ptr->rander->deltadist_x;
             }
             else
             {
-                stepX = 1;
-                sideDistX = (mapX + 1.0 - rayPosX) * deltaDistX;
+                ptr->rander->step_x = 1;
+                ptr->rander->sidedist_x = (ptr->rander->map_x + 1.0 - ptr->rander->raypos_x) * ptr->rander->deltadist_x;
             }
-            if (rayDirY < 0)
+            if (ptr->rander->raydir_y < 0)
             {
-                stepY = -1;
-                sideDistY = (rayPosY - mapY) * deltaDistY;
+                ptr->rander->step_y = -1;
+                ptr->rander->sidedist_y = (ptr->rander->raypos_y - ptr->rander->map_y) * ptr->rander->deltadist_y;
             }
             else
             {
-                stepY = 1;
-                sideDistY = (mapY + 1.0 - rayPosY) * deltaDistY;
+                ptr->rander->step_y = 1;
+                ptr->rander->sidedist_y = (ptr->rander->map_y + 1.0 - ptr->rander->raypos_y) * ptr->rander->deltadist_y;
             }
             //perform DDA
-            while (hit == 0)
+            while (ptr->rander->hit == 0)
             {
                 //jump to next map square, OR in x-direction, OR in y-direction
-                if (sideDistX < sideDistY)
+                if (ptr->rander->sidedist_x < ptr->rander->sidedist_y)
                 {
-                    sideDistX += deltaDistX;
-                    mapX += stepX;
-                    side = 0;
+                    ptr->rander->sidedist_x += ptr->rander->deltadist_x;
+                    ptr->rander->map_x += ptr->rander->step_x;
+                    ptr->rander->side = 0;
                 }
                 else
                 {
-                    sideDistY += deltaDistY;
-                    mapY += stepY;
-                    side = 1;
+                    ptr->rander->sidedist_y += ptr->rander->deltadist_y;
+                    ptr->rander->map_y += ptr->rander->step_y;
+                    ptr->rander->side = 1;
                 }
-                //Check if ray has hit a wall
-                if (worldMap[mapX][mapY] > 0) hit = 1;
+                //Check if ray has ptr->rander->hit a wall
+                if (worldMap[ptr->rander->map_x][ptr->rander->map_y] > 0) ptr->rander->hit = 1;
             }
             //Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
-            if (side == 0) perpWallDist = (mapX - rayPosX + (1 - stepX) / 2) / rayDirX;
-            else           perpWallDist = (mapY - rayPosY + (1 - stepY) / 2) / rayDirY;
+            if (ptr->rander->side == 0) ptr->rander->perpwalldist = (ptr->rander->map_x - ptr->rander->raypos_x + (1 - ptr->rander->step_x) / 2) / ptr->rander->raydir_x;
+            else           ptr->rander->perpwalldist = (ptr->rander->map_y - ptr->rander->raypos_y + (1 - ptr->rander->step_y) / 2) / ptr->rander->raydir_y;
             
             //Calculate height of line to draw on screen
-            int lineHeight = (int)(h / perpWallDist);
+            int lineHeight = (int)(ptr->h / ptr->rander->perpwalldist);
             
             //calculate lowest and highest pixel to fill in current stripe
-            int drawStart = -lineHeight / 2 + h / 2;
+            int drawStart = -lineHeight / 2 + ptr->h / 2;
             if(drawStart < 0)drawStart = 0;
-            int drawEnd = lineHeight / 2 + h / 2;
-            if(drawEnd >= h)drawEnd = h - 1;
+            int drawEnd = lineHeight / 2 + ptr->h / 2;
+            if(drawEnd >= ptr->h)drawEnd = ptr->h - 1;
             //choose wall color
-            int  color;
-            switch(worldMap[mapX][mapY])
+            switch(worldMap[ptr->rander->map_x][ptr->rander->map_y])
             {
-                case 1:  color = 0xDC143C;  break; //red
-                case 2:  color = 0x7FFF00;  break; //green
-                case 3:  color = 0x00BFFF;   break; //blue
-                case 4:  color = 0xFF00FF;  break; //white
-                default: color = 0xFFFF00; break; //yellow
+                case 1:  ptr->color = 0xDC143C;  break; //red
+                case 2:  ptr->color = 0x7FFF00;  break; //green
+                case 3:  ptr->color = 0x00BFFF;   break; //blue
+                case 4:  ptr->color = 0xFF00FF;  break; //wptr->rander->hite
+                default: ptr->color = 0xFFFF00; break; //yellow
             }
             //give x and y sides different brightness
-            //if (side == 1) {color = color / 2;}
-            
-            //draw the pixels of the stripe as a vertical line
-            verLine(x, drawStart, drawEnd, color);
+            if (ptr->rander->side == 1) {ptr->color = ptr->color / 2;}
+            vertline(ptr, x, drawStart, drawEnd);
         }
-        mlx_put_image_to_window(ptr, win, img, 0, 0);
+        mlx_put_image_to_window(ptr->ptr, ptr->win, ptr->img, 0, 0);
 }
 
-int  movement(int key)
+int  movement(int key, void *data)
 {
-    printf("key %d\n", key);
+    t_pixel *ptr;
+
+    ptr = (t_pixel *)data;
+	if (key == 53)
+	{
+		exit(1);
+	}
+    //printf("key %d\n", key);
     //timing for input and FPS counter
         double frameTime = 0.10; //frameTime is the time this frame has taken, in seconds
         //speed modifiers
@@ -194,48 +195,51 @@ int  movement(int key)
         //move forward if no wall in front of you
         if (key == 126)
         {
-            if(worldMap[(int)(posX + dirX * moveSpeed)][(int)(posY)] == 0) posX += dirX * moveSpeed;
-            if(worldMap[(int)(posX)][(int)(posY + dirY * moveSpeed)] == 0) posY += dirY * moveSpeed;
+            if(worldMap[(int)(ptr->rander->pos_x + ptr->rander->dir_x * moveSpeed)][(int)(ptr->rander->pos_y)] == 0)
+                ptr->rander->pos_x += ptr->rander->dir_x * moveSpeed;
+            if(worldMap[(int)(ptr->rander->pos_x)][(int)(ptr->rander->pos_y + ptr->rander->dir_y * moveSpeed)] == 0)
+                ptr->rander->pos_y += ptr->rander->dir_x * moveSpeed;
         }
         //move backwards if no wall behind you
         if (key == 125)
         {
-            if(worldMap[(int)(posX - dirX * moveSpeed)][(int)(posY)] == 0) posX -= dirX * moveSpeed;
-            if(worldMap[(int)(posX)][(int)(posY - dirY * moveSpeed)] == 0) posY -= dirY * moveSpeed;
+            if(worldMap[(int)(ptr->rander->pos_x - ptr->rander->dir_x * moveSpeed)][(int)(ptr->rander->pos_y)] == 0)
+                ptr->rander->pos_x -= ptr->rander->dir_x * moveSpeed;
+            if(worldMap[(int)(ptr->rander->pos_x)][(int)(ptr->rander->pos_y - ptr->rander->dir_y * moveSpeed)] == 0)
+                ptr->rander->pos_y -= ptr->rander->dir_y * moveSpeed;
         }
         //rotate to the right
         if (key == 124)
         {
             //both camera direction and camera plane must be rotated
-            double oldDirX = dirX;
-            dirX = dirX * cos(-rotSpeed) - dirY * sin(-rotSpeed);
-            dirY = oldDirX * sin(-rotSpeed) + dirY * cos(-rotSpeed);
-            double oldPlaneX = planeX;
-            planeX = planeX * cos(-rotSpeed) - planeY * sin(-rotSpeed);
-            planeY = oldPlaneX * sin(-rotSpeed) + planeY * cos(-rotSpeed);
+            double oldDirX = ptr->rander->dir_x;
+            ptr->rander->dir_x = ptr->rander->dir_x * cos(-rotSpeed) - ptr->rander->dir_y * sin(-rotSpeed);
+            ptr->rander->dir_y = oldDirX * sin(-rotSpeed) + ptr->rander->dir_y * cos(-rotSpeed);
+            double oldPlaneX = ptr->rander->plane_x;
+            ptr->rander->plane_x = ptr->rander->plane_x * cos(-rotSpeed) - ptr->rander->plane_y * sin(-rotSpeed);
+            ptr->rander->plane_y = oldPlaneX * sin(-rotSpeed) + ptr->rander->plane_y * cos(-rotSpeed);
         }
         //rotate to the left
         if (key == 123)
         {
             //both camera direction and camera plane must be rotated
-            double oldDirX = dirX;
-            dirX = dirX * cos(rotSpeed) - dirY * sin(rotSpeed);
-            dirY = oldDirX * sin(rotSpeed) + dirY * cos(rotSpeed);
-            double oldPlaneX = planeX;
-            planeX = planeX * cos(rotSpeed) - planeY * sin(rotSpeed);
-            planeY = oldPlaneX * sin(rotSpeed) + planeY * cos(rotSpeed);
+            double oldDirX = ptr->rander->dir_x;
+            ptr->rander->dir_x = ptr->rander->dir_x * cos(rotSpeed) - ptr->rander->dir_y * sin(rotSpeed);
+            ptr->rander->dir_y = oldDirX * sin(rotSpeed) + ptr->rander->dir_y * cos(rotSpeed);
+            double oldPlaneX = ptr->rander->plane_x;
+            ptr->rander->plane_x = ptr->rander->plane_x * cos(rotSpeed) - ptr->rander->plane_y * sin(rotSpeed);
+            ptr->rander->plane_y = oldPlaneX * sin(rotSpeed) + ptr->rander->plane_y * cos(rotSpeed);
         }
-        ft_draw();
+        ft_draw(ptr);
         return (0);
 }
 
 int main(int argc, char *argv[])
 {
-    ptr = mlx_init();
-    img = mlx_new_image(ptr, w, h);
-    win = mlx_new_window(ptr, w, h, "wolf3d by ttshivhu");
-    c_img = mlx_get_data_addr(img, &bpp, &sl, &endian);
-    ft_draw();
-    mlx_key_hook (win, movement, NULL);
-    mlx_loop(ptr);
+    t_pixel *wolf;
+
+    wolf = init_wolf(512, 384);
+    ft_draw(wolf);
+    mlx_key_hook (wolf->win, movement, wolf);
+    mlx_loop(wolf->ptr);
 }
