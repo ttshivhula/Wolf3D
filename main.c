@@ -36,10 +36,10 @@ static t_rander *rander(void)
     bzero(new, sizeof(t_rander));
     new->pos_x = 22;
     new->pos_y = 11;
-    new->dir_x = -2;
+    new->dir_x = -1;
     new->dir_y = 0;
     new->plane_x = 0;
-    new->plane_y = 0.68;
+    new->plane_y = 0.66;
     return (new);
 }
 
@@ -183,13 +183,25 @@ void        ft_draw(t_pixel *ptr)
     mlx_put_image_to_window(ptr->ptr, ptr->win, ptr->img, 0, 0);
 }
 
+int         exit_hook(void *data)
+{
+    t_pixel *ptr;
+
+    ptr = (t_pixel *)data;
+    mlx_destroy_image(ptr->ptr, ptr->img);
+    mlx_destroy_window(ptr->ptr, ptr->win);
+    free(ptr->rander);
+    free(ptr);
+    exit(0);
+}
+
 int  movement(int key, void *data)
 {
     t_pixel *ptr;
 
     ptr = (t_pixel *)data;
 	if (key == 53)
-        exit(1);
+        exit_hook((void *)ptr);
     if (key == 126)
         ptr = forward(ptr, map);
     if (key == 125)
@@ -202,12 +214,13 @@ int  movement(int key, void *data)
     return (0);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     t_pixel *wolf;
 
-    wolf = init_wolf(712, 584, "Wolf3d by ttshivhu");
+    wolf = init_wolf(712, 484, "Wolf3d by ttshivhu");
     ft_draw(wolf);
-    mlx_key_hook (wolf->win, movement, wolf);
+    mlx_hook(wolf->win, 2, 0, movement, wolf);
+    mlx_hook(wolf->win, 17, 0, exit_hook, wolf);
     mlx_loop(wolf->ptr);
 }
