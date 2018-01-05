@@ -190,8 +190,10 @@ int         exit_hook(void *data)
     ptr = (t_pixel *)data;
     mlx_destroy_image(ptr->ptr, ptr->img);
     mlx_destroy_window(ptr->ptr, ptr->win);
+    free(ptr->ptr);
     free(ptr->rander);
     free(ptr);
+    printf("Exited successfuly.\n");
     exit(0);
 }
 
