@@ -19,6 +19,9 @@
 #include <mlx.h>
 #include <string.h>
 
+#define MAPWIDTH 24
+#define MAPHEIGHT 24
+
 typedef	struct	s_rander
 {
 	int			map_x;
@@ -63,5 +66,9 @@ typedef	struct 	s_pixel
 
 void		vertline(t_pixel *ptr, int x, int start, int end);
 void		draw_pixel(t_pixel **ptr, int x, int y);
+t_pixel     *forward(t_pixel *ptr, int map[MAPWIDTH][MAPHEIGHT]);
+t_pixel     *backward(t_pixel *ptr, int map[MAPWIDTH][MAPHEIGHT]);
+t_pixel     *right(t_pixel *ptr);
+t_pixel     *left(t_pixel *ptr);
 
 #endif
