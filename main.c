@@ -1,4 +1,17 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: ttshivhu <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2018/02/19 12:23:59 by ttshivhu          #+#    #+#             */
+/*   Updated: 2018/02/19 12:38:17 by ttshivhu         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "wolf3d.h"
+#include "wolf_v2.h"
 
 int map[MAPWIDTH][MAPHEIGHT]=
 {
@@ -43,6 +56,10 @@ static t_rander *rander(void)
     return (new);
 }
 
+/*
+** Initializes wolf 3S and allocate needed memory for the wolf ptr
+*/
+
 t_pixel     *init_wolf(int width, int height, char *title)
 {
     t_pixel *new;
@@ -57,6 +74,11 @@ t_pixel     *init_wolf(int width, int height, char *title)
     new->rander = rander();
     return (new);
 }
+
+/*
+** Overwrites the address buff with floor and top colors to clear the screen
+** in memory space...
+*/
 
 void        clear_screen(t_pixel **ptr)
 {
@@ -201,6 +223,7 @@ int  movement(int key, void *data)
 {
     t_pixel *ptr;
 
+	//printf("Received key: %d addr buff: %p\n", key, data);
     ptr = (t_pixel *)data;
 	if (key == 53)
         exit_hook((void *)ptr);
